@@ -30,33 +30,26 @@ class Request:
             "Connection": "keep-alive",
         }
 
-    def get_response(self, jsession_id):
-        self._header = {
-            "Content-Type": "application/json",
-            "Cookie": "JSESSIONID={}".format(jsession_id),
-            "Connection": "keep-alive",
-        }
-
-        r = requests.post(self._url, headers=self._header, data=self._payload)
-        data = r.json()
-        return data
-
     async def async_get_response(self, jsession_id):
         self._header = {
             "Content-Type": "application/json",
-            "Cookie": "JSESSIONID={}".format(jsession_id),
-            "Host": "element.cloud.sengled.com:443",
+            "Cookie": f"JSESSIONID={jsession_id}",
             "Connection": "keep-alive",
         }
+        
+        # It's important to create a new SSL context for secure HTTPS requests.
+        sslcontext = ssl.create_default_context(cafile=certifi.where())
 
+        # Use aiohttp's ClientSession for asynchronous HTTP requests.
         async with aiohttp.ClientSession() as session:
-            sslcontext = ssl.create_default_context(cafile=certifi.where())
-            async with session.post(
-                self._url, headers=self._header, data=self._payload, ssl=sslcontext
-            ) as resp:
-                data = await resp.json()
-                # _LOGGER.debug("SengledApi: data from Response %s ", str(data))
-                return data
+            async with session.post(self._url, headers=self._header, data=self._payload, ssl=sslcontext) as response:
+                # Make sure to handle potential exceptions and non-JSON responses appropriately.
+                if response.status == 200:
+                    data = await response.json()
+                    return data
+                else:
+                    # Log an error or handle the response appropriately if not successful.
+                    return None
 
     ########################Login#####################################
     def get_login_response(self):
